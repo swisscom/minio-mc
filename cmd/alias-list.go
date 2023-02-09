@@ -26,6 +26,13 @@ import (
 	"github.com/minio/pkg/console"
 )
 
+var aliasListFlags = []cli.Flag{
+	cli.BoolFlag{
+		Name:  "details",
+		Usage: "show all details of aliases",
+	},
+}
+
 var aliasListCmd = cli.Command{
 	Name:      "list",
 	ShortName: "ls",
@@ -34,7 +41,7 @@ var aliasListCmd = cli.Command{
 		return mainAliasList(ctx, false)
 	},
 	Before:          setGlobalsFromContext,
-	Flags:           globalFlags,
+	Flags:           append(globalFlags, aliasListFlags...),
 	OnUsageError:    onUsageError,
 	HideHelpCommand: true,
 	CustomHelpTemplate: `NAME:
@@ -52,6 +59,9 @@ EXAMPLES:
 
   2. List a specific alias.
      {{.Prompt}} {{.HelpName}} s3
+
+ 3. List a specific alias with all details.
+     {{.Prompt}} {{.HelpName}} s3 --details
 `,
 }
 
@@ -77,17 +87,18 @@ func mainAliasList(ctx *cli.Context, deprecated bool) error {
 	console.SetColor("Path", color.New(color.FgCyan))
 
 	alias := cleanAlias(ctx.Args().Get(0))
+	withDetails := ctx.Bool("details")
 
 	aliasesMsgs := listAliases(alias, deprecated) // List all configured hosts.
 	for i := range aliasesMsgs {
 		aliasesMsgs[i].op = "list"
 	}
-	printAliases(aliasesMsgs...)
+	printAliases(withDetails, aliasesMsgs...)
 	return nil
 }
 
 // Prints all the aliases
-func printAliases(aliases ...aliasMessage) {
+func printAliases(withDetails bool, aliases ...aliasMessage) {
 	maxAlias := 0
 	for _, alias := range aliases {
 		if len(alias.Alias) > maxAlias {
@@ -103,6 +114,10 @@ func printAliases(aliases ...aliasMessage) {
 			alias.AccessKey = ""
 			alias.SecretKey = ""
 			alias.API = ""
+		}
+		if !withDetails {
+			alias.AccessKey = "<redacted>"
+			alias.SecretKey = "<redacted>"
 		}
 		printMsg(alias)
 	}
